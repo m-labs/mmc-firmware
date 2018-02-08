@@ -47,7 +47,6 @@ Debug/
 *.d
 
 #Binaries
-*.axf
 *.bin
 
 #Cmake files
