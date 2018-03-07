@@ -53,7 +53,8 @@ void RTM_Manage( void * Parameters )
     uint8_t rtm_pwr_lvl_change = rtm_power_level;
 
     /* Start with RTM payload disabled */
-    rtm_disable_payload_power();
+    /* Disabled for sayma AMC */
+    // rtm_disable_payload_power();
 
 #ifdef BENCH_TEST
     rtm_power_level = 0x01;

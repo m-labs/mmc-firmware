@@ -2,6 +2,13 @@
 ![Travis build status](https://travis-ci.org/lnls-dig/openMMC.svg?branch=master)
 Open Source modular IPM Controller firmware
 
+# Sayma PORT
+
+Since this build is in state of debugging, some features can be disabled changed e.g:
+- Bootloader is disabled, no need to flash it before application
+- Some of module changes are (for now) board-specific and could not work for boards other than Sayma
+
+
 ## Installation:
 The following packages are needed in your system in order to compile the firmware:
 - **gcc-arm-none-eabi**
