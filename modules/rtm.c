@@ -72,8 +72,17 @@ void RTM_Manage( void * Parameters )
 
                 rtm_present = true;
 
+                /* SCANSTA CONFIG */
+                gpio_set_pin_state( PIN_PORT(GPIO_SCANSTA112_RESET), PIN_NUMBER(GPIO_SCANSTA112_RESET), GPIO_LEVEL_LOW );
+                vTaskDelay(10);
+
                 // lpsel5 RTM JTAG
-                gpio_set_pin_state( PIN_PORT(GPIO_SCANSTA112_LPSEL5), PIN_NUMBER(GPIO_SCANSTA112_LPSEL5), GPIO_LEVEL_LOW );
+                gpio_set_pin_state( PIN_PORT(GPIO_SCANSTA112_LPSEL5), PIN_NUMBER(GPIO_SCANSTA112_LPSEL5), GPIO_LEVEL_HIGH );
+
+                vTaskDelay(10);
+                gpio_set_pin_state( PIN_PORT(GPIO_SCANSTA112_RESET), PIN_NUMBER(GPIO_SCANSTA112_RESET), GPIO_LEVEL_HIGH );
+
+                /* END SCANSTA */
 
                 /* Create/Read the RTM FRU info before sending the hotswap event */
                 fru_init(FRU_RTM);
@@ -119,6 +128,8 @@ void RTM_Manage( void * Parameters )
 
             ps_old_state = ps_new_state;
         }
+
+
 
         if ( rtm_pwr_lvl_change ^ rtm_power_level ) {
             rtm_pwr_lvl_change = rtm_power_level;

@@ -46,7 +46,7 @@
 #include "uart_debug.h"
 
 /* data for EXARS on AMC [0] and RTM [1] */
-static xr77129_data_t xr77129_data[2];
+xr77129_data_t xr77129_data[2];
 
 void xr77129_init ()
 {
@@ -57,12 +57,6 @@ void xr77129_init ()
 	xr77129_data[0].status_regs_addr[PWR_STATUS_REG] = XR77129_PWR_GET_STATUS;
 	xr77129_data[0].status_regs_addr[PWR_CHIP_READY] = XR77129_CHIP_READY;
 	xr77129_data[0].status_regs_addr[GPIO_STATE] 	 = XR77129_GPIO_READ_GPIO;
-
-	/* Check if there is valid configuration in xr77128 flash */
-//	if ( ! xr77129_flash_verify( &xr77129_data[0], xr77129_flash_config, sizeof(xr77129_flash_config)/sizeof(xr77129_flash_config[0]) ) )
-//	{
-//		xr77129_flash_load ( &xr77129_data[0], xr77129_flash_config, sizeof(xr77129_flash_config)/sizeof(xr77129_flash_config[0]) );
-//	}
 
 	xTaskCreate( vTaskXR77129, "XR77129", 100, (void *) NULL, tskXR77129_PRIORITY, &vTaskXR77129_Handle);
 
@@ -104,6 +98,7 @@ void vTaskXR77129( void *Parameters )
 	uint8_t xr77129_PowerGood = 0;
 	uint8_t P0V95_PowerGood = 0;
 	uint8_t P1V2_PowerGood = 0;
+	uint8_t xr77129_flashverified = false;
 
     TickType_t xLastWakeTime;
     /* Task will run every 100ms */
@@ -114,6 +109,17 @@ void vTaskXR77129( void *Parameters )
 
     for (;;)
     {
+    	if (!xr77129_flashverified) {
+    		if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK))) {
+    			if (!xr77129_flash_verify(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]))) {
+    				printf("FLASH ERROR\n");
+    			} else {
+    				printf("FLASH OK\n");
+    			}
+    			xr77129_flashverified = true;
+    		}
+    	}
+
     	/* Payload power good flag */
     	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
     	{
@@ -149,6 +155,98 @@ void vTaskXR77129( void *Parameters )
 
     	vTaskDelayUntil( &xLastWakeTime, xFrequency );
     }
+}
+
+uint8_t xr77129_flash_verify( xr77129_data_t * data, const uint8_t * flash_data, uint32_t size )
+{
+	uint8_t rx[2] = { 0 };
+	uint8_t reg;
+	uint16_t value;
+	uint8_t i2c_interf, i2c_addr;
+
+	printf("Checking EXAR configuration\n");
+
+	// ENABLE FLASH
+	uint16_t command = 0x0001;
+	reg = 0x4D;
+	xr77129_write_value(data, reg, command);
+
+	// 10msec delay
+	vTaskDelay(100);
+
+	// set FLASH address at 0x00
+	command = 0x0000;
+	xr77129_write_value(data, XR77129_FLASH_PROGRAM_ADDRESS, command);
+
+	// Readout by using DATA INC each read
+	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS;
+	for (int i = 0x00 ; i < size; i += 2 )
+	{
+		vTaskDelay(10);
+
+		if( i2c_take_by_chipid(data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
+
+			xI2CMasterWriteRead( i2c_interf, i2c_addr, data_address, rx, 2 );
+
+			if (rx[0] != flash_data[i] || rx[1] != flash_data[i + 1]) {
+				printf("\nDifference at byte %d\n", i);
+				i2c_give( i2c_interf );
+				return false;
+			} else {
+				printf(".");
+				if ( i % 128 == 0 && i != 0) printf("\n");
+			}
+
+			i2c_give( i2c_interf );
+		}
+	}
+
+	printf("\nDone\n");
+	return true;
+}
+
+uint8_t xr77129_flash_read( xr77129_data_t * data, uint16_t address, uint32_t size)
+{
+	uint8_t rx[2] = { 0 };
+	uint8_t reg;
+	uint16_t value;
+	uint8_t i2c_interf, i2c_addr;
+
+	printf("Read %d at %d\n", size, address);
+
+	// ENABLE FLASH
+	uint16_t command = 0x0001;
+	reg = 0x4D;
+	xr77129_write_value(data, reg, command);
+
+	// 10msec delay
+	vTaskDelay(100);
+
+	// set FLASH address at 0x00
+	command = address;
+	xr77129_write_value(data, XR77129_FLASH_PROGRAM_ADDRESS, command);
+
+	// Readout by using DATA INC each read
+	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS;
+	for (int i = 0x00 ; i < size; i += 2 )
+	{
+		vTaskDelay(10);
+
+		if( i2c_take_by_chipid(data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
+
+			xI2CMasterWriteRead( i2c_interf, i2c_addr, data_address, rx, 2 );
+			printf("[%d] %02X %02X\n", i, rx[0], rx[1]);
+			i2c_give( i2c_interf );
+		}
+	}
+	return true;
+}
+
+void xr77129_flashops(void)
+{
+	xr77129_flash_erase(&xr77129_data[0]);
+	xr77129_flash_program(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
+	xr77129_flash_verify(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
 }
 
 #ifdef MODULE_RTM
@@ -193,7 +291,6 @@ void vTaskXR77129_RTM( void *Parameters )
 
 uint8_t xr77129_flash_load ( xr77129_data_t * data, const uint8_t * xr77129_config, uint32_t size )
 {
-
 	xr77129_flash_erase ( data );
 
 	xr77129_flash_program ( data, xr77129_config, size );
@@ -203,10 +300,10 @@ uint8_t xr77129_flash_load ( xr77129_data_t * data, const uint8_t * xr77129_conf
 	return 0;
 }
 
-
 uint8_t xr77129_flash_erase ( xr77129_data_t * data )
 {
 	uint8_t page;
+	printf("Clearing flash pages....");
 
 	for ( page=0 ; page <= 6 ; page++)
 	{
@@ -218,103 +315,170 @@ uint8_t xr77129_flash_erase ( xr77129_data_t * data )
 		xr77129_flash_page_erase(data, page);
 	}
 
+	printf("Done\n");
+
+	return 0;
+}
+
+uint8_t xr77129_flash_page_erase ( xr77129_data_t * data, uint8_t page )
+{
+	if (page > 6) return 255;
+
+	// Init flash for page clear
+	uint16_t flash_enable_erase = 0x0005;
+	xr77129_write_value( data, XR77129_FLASH_INIT, flash_enable_erase);
+
+	vTaskDelay(200);
+
+	// Issue page erase
+	uint16_t page_to_clear = (uint16_t) page;
+	xr77129_write_value( data, XR77129_FLASH_PAGE_ERASE, page_to_clear);
+
+	vTaskDelay(800);
+
+	uint16_t page_erase_status = 0x01;
+	uint8_t erase_timeout = 0xFF;
+	while ( page_erase_status & 0xFF )
+	{
+		xr77129_read_value( data, XR77129_FLASH_PAGE_ERASE, &page_erase_status );
+		vTaskDelay(100);
+		if (!erase_timeout--)
+		{
+			printf("Page erase timeout %d\n", page);
+			return 0xFF;
+		}
+	}
+
 	return 0;
 }
 
 uint8_t xr77129_flash_page_clear ( xr77129_data_t * data, uint8_t page )
 {
+	if (page > 6) return 255;
+
+	// Init flash for page clear
 	uint16_t flash_enable_clear = 0x0001;
 	xr77129_write_value( data, XR77129_FLASH_INIT, flash_enable_clear);
 
-	uint16_t page_clear = page;
-	xr77129_write_value( data, XR77129_FLASH_PAGE_CLEAR, page_clear);
+	vTaskDelay(200);
 
-	uint16_t page_clear_status = 0x01;
-	while ( page_clear_status & 0xFF )
-	{
-		/* TODO: timeout */
-		xr77129_read_value( data, XR77129_FLASH_PAGE_CLEAR, &page_clear_status );
-	}
+	// Issue page erase
+	uint16_t page_to_clear = (uint16_t) page;
+	xr77129_write_value( data, XR77129_FLASH_PAGE_CLEAR, page_to_clear);
 
-	return 0;
-}
-
-uint8_t xr77129_flash_page_erase (xr77129_data_t * data, uint8_t page )
-{
-	uint16_t init_page_erase = 0x0005;
-	xr77129_write_value( data, XR77129_FLASH_INIT, init_page_erase);
-
-	uint16_t page_erase = page;
-	xr77129_write_value( data, XR77129_FLASH_PAGE_ERASE, page_erase );
+	vTaskDelay(800);
 
 	uint16_t page_erase_status = 0x01;
+	uint8_t erase_timeout = 0x20;
+
 	while ( page_erase_status & 0xFF )
 	{
-		/* TODO: timeout */
-		xr77129_read_value( data, XR77129_FLASH_PAGE_ERASE, &page_erase_status );
+		xr77129_read_value( data, XR77129_FLASH_PAGE_CLEAR, &page_erase_status );
+		vTaskDelay(100);
+
+		if (!erase_timeout--) {
+			printf("Page clear timeout %d\n", page);
+			return 0xFF;
+		}
 	}
 
 	return 0;
 }
 
-
 uint8_t xr77129_flash_program ( xr77129_data_t * data, const uint8_t * flash_data, uint32_t size )
+{
+	printf("Programming flash...");
+
+	/* Enable flash program */
+	uint16_t page_clear = 0x0001;
+	xr77129_write_value( data, XR77129_FLASH_INIT, page_clear);
+
+	vTaskDelay(100);
+
+	/* program data */
+	uint32_t i;
+	uint8_t i2c_interf, i2c_addr;
+	uint8_t tx[3] = { 0 };
+
+	if ( i2c_take_by_chipid( data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE )
+	{
+		for ( i = 0 ; i < size ; i += 2 ) {
+
+			tx[0] = XR77129_FLASH_PROGRAM_ADDRESS;
+			tx[2] = i & 0xFF;
+			tx[1] = (i & 0xFF00) >> 8;
+			xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
+
+			vTaskDelay(10);
+
+			tx[0] = XR77129_FLASH_PROGRAM_DATA;
+			tx[1] = flash_data[i];
+			tx[2] = flash_data[i + 1];
+			xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
+
+			vTaskDelay(200);
+		}
+
+		i2c_give( i2c_interf );
+	}
+
+	printf("Done\n");
+	return 0;
+}
+
+uint8_t xr77129_flash_write ( xr77129_data_t * data, uint16_t address, uint8_t flash_data, uint8_t flash_data2)
 {
 	/* Enable flash program */
 	uint16_t page_clear = 0x0001;
 	xr77129_write_value( data, XR77129_FLASH_INIT, page_clear);
 
-	/* set flash address pointer */
-	uint16_t flash_program_address = 0x0000;
-	xr77129_write_value( data, XR77129_FLASH_PROGRAM_ADDRESS, flash_program_address);
+	vTaskDelay(100);
 
+	printf("writing %d %d to %d\n", flash_data, flash_data2, address);
 
 	/* program data */
-	uint32_t i;
-	uint16_t val;
+	uint8_t i2c_interf, i2c_addr;
+	uint8_t tx[3] = { 0 };
 
-	for ( i=0 ; i < size - 1 ; i+=2 )
+	if ( i2c_take_by_chipid( data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE )
 	{
-		val = (flash_data[1] << 8) | flash_data[i+1] ;
-		xr77129_write_value( data, XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS, val);
+		tx[0] = XR77129_FLASH_PROGRAM_ADDRESS;
+		tx[2] = address & 0xFF;
+		tx[1] = (address & 0xFF00) >> 8;
+		xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
+
+		vTaskDelay(10);
+
+		tx[0] = XR77129_FLASH_PROGRAM_DATA;
+		tx[1] = flash_data;
+		tx[2] = flash_data2;
+		xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
+		vTaskDelay(100);
+
+		i2c_give( i2c_interf );
 	}
 
 	return 0;
 }
 
-uint8_t xr77129_flash_verify ( xr77129_data_t * data, const uint8_t * flash_data, uint32_t size )
+void xr77129_reset( xr77129_data_t * data )
 {
-	uint8_t i2c_interf, i2c_addr;
-
-	uint8_t temp_flash [ size ];
-	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS;
-
-	uint8_t rx[2];
-	uint8_t i = 0x00;
-	for ( ; i < size-1 ; i+=2 )
-	{
-		if( i2c_take_by_chipid( data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
-
-			xI2CMasterWriteRead( i2c_interf, i2c_addr, data_address, rx, sizeof(rx)/sizeof(rx[0]) );
-
-			i2c_give( i2c_interf );
-			temp_flash[i] = rx[0];
-			temp_flash[i+1] = rx[1];
-		}
-	}
-
-	for ( i=0 ; i < size ; i++)
-	{
-		if (temp_flash[i] != flash_data[i])
-		{
-			return 0;
-		}
-	}
-
-	return 1;
+	uint16_t value = 0x0F00;
+	xr77129_write_value( data, XR77129_PWR_RESTART, value);
 }
 
+void xr77129_set_ready( xr77129_data_t * data , uint16_t status)
+{
+	xr77129_write_value( data, XR77129_CHIP_READY, status);
 
+	uint8_t reg = 0x0E;
+	uint16_t value;
+
+	vTaskDelay(100);
+
+	xr77129_read_value(data, reg, &value);
+	printf("EXAR STATUS %d\n", value);
+}
 
 void xr77129_read_status( xr77129_data_t * data )
 {
@@ -338,7 +502,7 @@ Bool xr77129_read_value( xr77129_data_t * data, uint8_t reg_address, uint16_t *r
 
         *read = (val[0] << 8) | (val[1]);
 
-//        DEBUG_MSG("Read reg %02X value %02X\n", reg_address, (val[0] << 8) | (val[1]));
+//        printf("Read reg %02X value %02X\n", reg_address, (val[0] << 8) | (val[1]));
 
         return true;
     }
@@ -350,14 +514,15 @@ uint8_t xr77129_write_value( xr77129_data_t * data, uint8_t reg_address, uint16_
 {
 	uint8_t i2c_interf, i2c_addr;
 
-	uint8_t tx[2] = {
-			value >> 8,
+	uint8_t tx[3] = {
+			reg_address,
+			(value & 0xFF00) >> 8,
 			value & 0xFF
 	};
 
 	if ( i2c_take_by_chipid( data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE )
 	{
-		xI2CMasterWrite( i2c_interf, i2c_addr, tx, sizeof(tx)/sizeof(tx[0]) );
+		xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
 		i2c_give( i2c_interf );
 
 		return 0;

@@ -37,6 +37,7 @@
 #define XR77129_GPIO_READ_GPIO			0x30
 #define XR77129_GPIO_SET_GPIO			0x31
 #define XR77129_GPIO_POL_GPIO			0x32
+
 /* FLASH COMMANDS */
 #define XR77129_FLASH_PROGRAM_ADDRESS			0x40
 #define XR77129_FLASH_PROGRAM_DATA				0x41
@@ -118,6 +119,10 @@ void xr77129_read_status( xr77129_data_t * data );
 Bool xr77129_read_value( xr77129_data_t * data, uint8_t reg_address, uint16_t *read );
 uint8_t xr77129_write_value( xr77129_data_t * data, uint8_t reg_address, uint16_t value );
 void xr77129_dump_registers(void);
-
+void xr77129_flashops(void);
+void xr77129_reset( xr77129_data_t * data );
+void xr77129_set_ready( xr77129_data_t * data , uint16_t status);
+uint8_t xr77129_flash_read( xr77129_data_t * data, uint16_t address, uint32_t size);
+uint8_t xr77129_flash_write ( xr77129_data_t * data, uint16_t address, uint8_t flash_data, uint8_t flash_data2);
 
 #endif /* MODULES_XR77129_H_ */

@@ -68,12 +68,29 @@ void rtm_disable_payload_power( void )
 
 void rtm_enable_dcdc( void )
 {
-	pcf8574_set_port_low( 1 << RTM_GPIO_EN_DC_DC );
+	uint8_t i2c_addr, i2c_id;
+	uint8_t state = pcf8574_read_port();
+
+	if ( state == PCF8574_READ_ERROR ) {
+		printf("pcf read error");
+		return;
+	}
+
+	uint8_t data = state & (~(1 << RTM_GPIO_EN_DC_DC)) ;
+
+	if( i2c_take_by_chipid( CHIP_ID_RTM_PCF8574A, &i2c_addr, &i2c_id, (TickType_t) portMAX_DELAY) ) {
+		xI2CMasterWrite(i2c_id, i2c_addr, &data, sizeof(data));
+		i2c_give(i2c_id);
+	}
+
+	state = pcf8574_read_port();
+	printf("DCDC en %d\n", state);
 }
 
 uint8_t rtm_get_hotswap_handle_status( uint8_t *state )
 {
 	uint8_t result = pcf8574_read_pin( RTM_GPIO_HOTSWAP_HANDLE );
+
 	if (result == PCF8574_READ_ERROR)
 		return false;
 

@@ -7,9 +7,12 @@
 
 #include "eth_phy.h"
 #include "chip_lpc177x_8x.h"
+#include "enet_17xx_40xx.h"
 
 void phy_init(void)
 {
+//	Chip_ENET_Init(LPC_ETHERNET, true);
+
 	// init ETH PHY in RGMII mode
 	// RESET PHY
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RESETn), PIN_NUMBER(GPIO_PHY_RESETn), GPIO_LEVEL_LOW );
@@ -32,8 +35,13 @@ void phy_init(void)
 	// MII LED OFF
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_MII_MODE_LED), PIN_NUMBER(GPIO_PHY_MII_MODE_LED), GPIO_LEVEL_LOW );
 
+	// configure mdio pins
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 16, (IOCON_FUNC1));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 17, (IOCON_FUNC1));
+
 	// select page 2
-	phy_write(0x04,  31, 0x12);
+	phy_write(0x04, 31, 0x12);
+	printf("31 %d\n", 0, phy_read(0x4, 31));
 
 	// power down Rx CDR
 	phy_write(0x04,  16, 0x4004);
