@@ -72,7 +72,6 @@ void rtm_enable_dcdc( void )
 	uint8_t state = pcf8574_read_port();
 
 	if ( state == PCF8574_READ_ERROR ) {
-		printf("pcf read error");
 		return;
 	}
 

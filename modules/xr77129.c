@@ -44,11 +44,13 @@
 #include "fru.h"
 #include "xr77129_flash_cfg.h"
 #include "uart_debug.h"
+#include "pcf8574.h"
+#include "rtm_user.h"
 
 /* data for EXARS on AMC [0] and RTM [1] */
 xr77129_data_t xr77129_data[2];
 
-void xr77129_init ()
+void xr77129_init()
 {
 	xr77129_data[0].chipid = CHIP_ID_XR77129;
 
@@ -58,7 +60,7 @@ void xr77129_init ()
 	xr77129_data[0].status_regs_addr[PWR_CHIP_READY] = XR77129_CHIP_READY;
 	xr77129_data[0].status_regs_addr[GPIO_STATE] 	 = XR77129_GPIO_READ_GPIO;
 
-	xTaskCreate( vTaskXR77129, "XR77129", 100, (void *) NULL, tskXR77129_PRIORITY, &vTaskXR77129_Handle);
+	xTaskCreate( vTaskXR77129, "XR77129", 256, (void *) NULL, tskXR77129_PRIORITY, &vTaskXR77129_Handle);
 
 #ifdef MODULE_RTM
 	xr77129_RTM_init();
@@ -107,19 +109,15 @@ void vTaskXR77129( void *Parameters )
     /* Initialise the xLastWakeTime variable with the current time. */
     xLastWakeTime = xTaskGetTickCount();
 
+    vTaskDelay(2000);
+
+    while (!xr77129_flashverified) {
+    	xr77129_flashverified = xr77129_check_flash(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
+    	vTaskDelay(500);
+    }
+
     for (;;)
     {
-    	if (!xr77129_flashverified) {
-    		if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK))) {
-    			if (!xr77129_flash_verify(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]))) {
-    				printf("FLASH ERROR\n");
-    			} else {
-    				printf("FLASH OK\n");
-    			}
-    			xr77129_flashverified = true;
-    		}
-    	}
-
     	/* Payload power good flag */
     	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
     	{
@@ -160,11 +158,12 @@ void vTaskXR77129( void *Parameters )
 uint8_t xr77129_flash_verify( xr77129_data_t * data, const uint8_t * flash_data, uint32_t size )
 {
 	uint8_t rx[2] = { 0 };
+	uint8_t tx[3] = { 0 };
 	uint8_t reg;
 	uint16_t value;
 	uint8_t i2c_interf, i2c_addr;
 
-	printf("Checking EXAR configuration\n");
+	printf("Checking %d EXAR configuration\n", data->chipid);
 
 	// ENABLE FLASH
 	uint16_t command = 0x0001;
@@ -178,36 +177,34 @@ uint8_t xr77129_flash_verify( xr77129_data_t * data, const uint8_t * flash_data,
 	command = 0x0000;
 	xr77129_write_value(data, XR77129_FLASH_PROGRAM_ADDRESS, command);
 
-	// Readout by using DATA INC each read
-	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS;
-	for (int i = 0x00 ; i < size; i += 2 )
-	{
-		vTaskDelay(10);
+	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA;
+	if( i2c_take_by_chipid(data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
+		for (uint32_t i = 0x00 ; i < size; i += 2 )
+		{
+			tx[0] = XR77129_FLASH_PROGRAM_ADDRESS;
+			tx[2] = i & 0xFF;
+			tx[1] = (i & 0xFF00) >> 8;
+			xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
 
-		if( i2c_take_by_chipid(data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
-
+			vTaskDelay(10);
 			xI2CMasterWriteRead( i2c_interf, i2c_addr, data_address, rx, 2 );
 
 			if (rx[0] != flash_data[i] || rx[1] != flash_data[i + 1]) {
-				printf("\nDifference at byte %d\n", i);
+				printf("\nDifference at byte %d for %d\n", i, data->chipid);
 				i2c_give( i2c_interf );
 				return false;
-			} else {
-				printf(".");
-				if ( i % 128 == 0 && i != 0) printf("\n");
 			}
-
-			i2c_give( i2c_interf );
 		}
+		i2c_give( i2c_interf );
 	}
 
-	printf("\nDone\n");
 	return true;
 }
 
 uint8_t xr77129_flash_read( xr77129_data_t * data, uint16_t address, uint32_t size)
 {
 	uint8_t rx[2] = { 0 };
+	uint8_t tx[3] = { 0 };
 	uint8_t reg;
 	uint16_t value;
 	uint8_t i2c_interf, i2c_addr;
@@ -226,27 +223,56 @@ uint8_t xr77129_flash_read( xr77129_data_t * data, uint16_t address, uint32_t si
 	command = address;
 	xr77129_write_value(data, XR77129_FLASH_PROGRAM_ADDRESS, command);
 
-	// Readout by using DATA INC each read
-	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS;
-	for (int i = 0x00 ; i < size; i += 2 )
-	{
-		vTaskDelay(10);
+	vTaskDelay(200);
 
-		if( i2c_take_by_chipid(data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
+	// Readout by using DATA INC each read
+	uint8_t data_address = XR77129_FLASH_PROGRAM_DATA; //XR77129_FLASH_PROGRAM_DATA_INC_ADDRESS;
+
+	if( i2c_take_by_chipid(data->chipid, &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE ) {
+		for (int i = 0x00 ; i < size; i += 2 )
+		{
+			vTaskDelay(100);
+
+			tx[0] = XR77129_FLASH_PROGRAM_ADDRESS;
+			tx[2] = (address + i) & 0xFF;
+			tx[1] = ((address + i) & 0xFF00) >> 8;
+			xI2CMasterWrite( i2c_interf, i2c_addr, tx, 3 );
+
+			vTaskDelay(10);
 
 			xI2CMasterWriteRead( i2c_interf, i2c_addr, data_address, rx, 2 );
 			printf("[%d] %02X %02X\n", i, rx[0], rx[1]);
-			i2c_give( i2c_interf );
 		}
+		i2c_give( i2c_interf );
 	}
 	return true;
 }
 
-void xr77129_flashops(void)
+uint8_t xr77129_check_flash( xr77129_data_t * data, const uint8_t * xr77129_config, uint32_t size )
 {
-	xr77129_flash_erase(&xr77129_data[0]);
-	xr77129_flash_program(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
-	xr77129_flash_verify(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
+	// EXAR PROGRAMMING ROUTINE
+	// If new configuration is detected, image is
+	// flashed & verified
+	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK))) {
+		if (!xr77129_flash_verify(data, xr77129_config, size))
+		{
+//			xr77129_set_ready(data, 0);
+//			xr77129_flash_erase(data);
+//			xr77129_flash_program(data, xr77129_config, size);
+//			if (xr77129_flash_verify(data, xr77129_config, size))
+//			{
+//				printf("xr77129 flash programming successfull\n");
+//				xr77129_reset(data);
+//			}
+			printf("xr77129 %d flash different\n", data->chipid);
+		} else {
+			printf("xr77129 %d flash verified\n", data->chipid);
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 #ifdef MODULE_RTM
@@ -261,13 +287,16 @@ void xr77129_RTM_init()
 	xr77129_data[1].status_regs_addr[PWR_CHIP_READY] = XR77129_CHIP_READY;
 	xr77129_data[1].status_regs_addr[GPIO_STATE] 	 = XR77129_GPIO_READ_GPIO;
 
-//	xTaskCreate( vTaskXR77129_RTM, "XR77129_RTM", 100, (void *) NULL, tskXR77129_PRIORITY, &vTaskXR77129_RTM_Handle);
+	xTaskCreate( vTaskXR77129_RTM, "XR77129_RTM", 256, (void *) NULL, tskXR77129_PRIORITY, &vTaskXR77129_RTM_Handle);
 }
 
 void vTaskXR77129_RTM( void *Parameters )
 {
 	/* Power Good flags */
 	uint8_t xr77129_PowerGood = 0;
+	uint8_t i2c_interf, i2c_addr;
+	uint8_t val[2] = { 0 };
+	uint8_t xr77129_flashverified = false;
 
     TickType_t xLastWakeTime;
     /* Task will run every 100ms */
@@ -276,14 +305,32 @@ void vTaskXR77129_RTM( void *Parameters )
     /* Initialise the xLastWakeTime variable with the current time. */
     xLastWakeTime = xTaskGetTickCount();
 
-    for (;;)
-    {
-    	if (!gpio_read_pin( PIN_PORT(GPIO_RTM_PS), PIN_NUMBER(GPIO_RTM_PS) ))
-    	{
-    		xr77129_read_status( &xr77129_data[1] );
+    vTaskDelay(3000);
+    while (!xr77129_flashverified) {
+    	uint8_t state = pcf8574_read_port();
+    	if (state & RTM_GPIO_EN_DC_DC) {
+    		xr77129_flashverified = xr77129_check_flash(&xr77129_data[1], xr77129_rtm_flash_cfg, sizeof(xr77129_rtm_flash_cfg)/sizeof(xr77129_rtm_flash_cfg[0]));
     	}
 
-    	vTaskDelayUntil( &xLastWakeTime, xFrequency );
+    	vTaskDelay(2000);
+    }
+
+    for (;;)
+    {
+//    	if (!gpio_read_pin( PIN_PORT(GPIO_RTM_PS), PIN_NUMBER(GPIO_RTM_PS) ))
+//    	{
+//    		if( i2c_take_by_chipid(xr77129_data[1].chipid , &i2c_addr, &i2c_interf, portMAX_DELAY) == pdTRUE )
+//			{
+//				xI2CMasterWriteRead( i2c_interf, i2c_addr, 0x0B, &val[0], sizeof(val)/sizeof(val[0]) );
+//
+//				i2c_give( i2c_interf );
+//
+//		        printf("Read reg %02X value %02X\n", 0x14, (val[0] << 8) | (val[1]));
+//			}
+//    	}
+
+//    	vTaskDelayUntil( &xLastWakeTime, xFrequency );
+    	vTaskDelay(1000);
     }
 }
 
@@ -303,7 +350,7 @@ uint8_t xr77129_flash_load ( xr77129_data_t * data, const uint8_t * xr77129_conf
 uint8_t xr77129_flash_erase ( xr77129_data_t * data )
 {
 	uint8_t page;
-	printf("Clearing flash pages....");
+	printf("Clearing EXAR flash pages....");
 
 	for ( page=0 ; page <= 6 ; page++)
 	{
@@ -387,7 +434,7 @@ uint8_t xr77129_flash_page_clear ( xr77129_data_t * data, uint8_t page )
 
 uint8_t xr77129_flash_program ( xr77129_data_t * data, const uint8_t * flash_data, uint32_t size )
 {
-	printf("Programming flash...");
+	printf("Programming EXAR flash...");
 
 	/* Enable flash program */
 	uint16_t page_clear = 0x0001;
@@ -529,7 +576,7 @@ uint8_t xr77129_write_value( xr77129_data_t * data, uint8_t reg_address, uint16_
 	}
 
 	return -1;
-}
+};
 
 void xr77129_dump_registers(void)
 {
@@ -538,34 +585,34 @@ void xr77129_dump_registers(void)
 
 	printf("------------ Exar Dump ----------\n");
 	reg_addr = 0x02;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("GET_HOST_STS 0x%x 0x%x 0x%x\n", 0x02, (ret_val >> 8) & 0xFF, ret_val & 0xFF);
 
 	reg_addr = 0x05;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("GET_FAULT_STS 0x%x 0x%x 0x%x\n", 0x05, (ret_val >> 8) & 0xFF, ret_val & 0xFF);
 
 	reg_addr = 0x09;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("PWR_GET_STATUS 0x%x 0x%x 0x%x\n", 0x09, (ret_val >> 8) & 0xFF, ret_val & 0xFF);
 
 	reg_addr = 0x10;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("PWR_READ_VOLTAGE_CH1 0x%x %d %d V\n", 0x10, (((ret_val >> 8) & 0xFF), (ret_val & 0xFF)));
 
 	reg_addr = 0x11;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("PWR_READ_VOLTAGE_CH2 0x%x %d %d V\n", 0x11, (((ret_val >> 8) & 0xFF), (ret_val & 0xFF)));
 
 	reg_addr = 0x12;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("PWR_READ_VOLTAGE_CH3 0x%x %d %d V\n", 0x12, (((ret_val >> 8) & 0xFF), (ret_val & 0xFF)));
 
 	reg_addr = 0x13;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("PWR_READ_VOLTAGE_CH4 0x%x %d %d V\n", 0x13, (((ret_val >> 8) & 0xFF), (ret_val & 0xFF)));
 
 	reg_addr = 0x14;
-	xr77129_read_value( &xr77129_data[0], reg_addr, &ret_val);
+	xr77129_read_value( &xr77129_data[1], reg_addr, &ret_val);
 	printf("PWR_READ_VOLTAGE_IN 0x%x %d %d V\n", 0x14, (((ret_val >> 8) & 0xFF), (ret_val & 0xFF)));
 }

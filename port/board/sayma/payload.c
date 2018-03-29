@@ -118,7 +118,7 @@ void setDC_DC_ConvertersON()
 	vTaskDelay(100);
 
 	/* EXAR enables all outputs */
-//	gpio_set_pin_state( PIN_PORT(GPIO_EN_PSU_CH), PIN_NUMBER(GPIO_EN_PSU_CH), true );
+	gpio_set_pin_state( PIN_PORT(GPIO_EN_PSU_CH), PIN_NUMBER(GPIO_EN_PSU_CH), true );
 }
 
 void setDC_DC_ConvertersOFF()

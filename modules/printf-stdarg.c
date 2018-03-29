@@ -186,7 +186,12 @@ int printf(const char *format, ...)
     va_list args;
 
     va_start( args, format );
-    return print( 0, format, args );
+
+//    portENTER_CRITICAL();
+    int ret = print( 0, format, args );
+//    portEXIT_CRITICAL();
+
+    return ret;
 }
 
 int vprintf(const char *format, va_list args)

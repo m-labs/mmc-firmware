@@ -58,18 +58,18 @@ caddr_t _sbrk(int incr) {
  char *prev_heap_end;
 
  if (heap_end == 0) {
-  heap_end = &heap_low;
+	 heap_end = &heap_low;
  }
  prev_heap_end = heap_end;
 
  if (heap_end + incr > &heap_top) {
-  /* Heap and stack collision */
-  return (caddr_t)0;
+	 /* Heap and stack collision */
+	 return (caddr_t)0;
  }
 
  heap_end += incr;
  return (caddr_t) prev_heap_end;
- }
+}
 
 extern xr77129_data_t xr77129_data[2];
 
@@ -88,13 +88,16 @@ void api_handler(uint8_t * data, uint8_t len)
  	} else if (!strcmp(cmd, "write")) {
  		xr77129_flash_write(&xr77129_data[0], a1, a2, a3);
  	} else if (!strcmp(cmd, "read")) {
- 		if (a1 % 2 == 0) xr77129_flash_read(&xr77129_data[0], a1, a2);
+ 		if ((a2 % 2 == 0) && a1 < 2) xr77129_flash_read(&xr77129_data[a1], a2, a3);
  	} else if (!strcmp(cmd, "ready")) {
- 		xr77129_set_ready(&xr77129_data[0], a1);
+ 		xr77129_set_ready(&xr77129_data[1], a1);
  	} else if (!strcmp(cmd, "reset")) {
  		xr77129_reset(&xr77129_data[0]);
  	} else if (!strcmp(cmd, "full")) {
- 		xr77129_flashops();
+// 		xr77129_check_flash();
+ 		xr77129_dump_registers();
+	} else if (!strcmp(cmd, "t")) {
+		xr77129_flash_read(&xr77129_data[1], 0, 10);
 	}
 }
 
@@ -111,7 +114,10 @@ void vCommandTask(void *pvParameters)
 		printf("Power override\n");
 		pwr_override = true;
 		setDC_DC_ConvertersON();
-//		rtm_power_level = 0x01;
+		rtm_power_level = 0x01;
+//		rtm_hardware_init();
+//		rtm_enable_payload_power();
+//		xr77129_init();
 	}
 
 	for (;;)
@@ -302,6 +308,7 @@ void prvGetRegistersFromStack( uint32_t *pulFaultStackAddress )
     pc = pulFaultStackAddress[ 6 ];
     psr = pulFaultStackAddress[ 7 ];
 
+//    NVIC_SystemReset();
     printf("Hardfault @ %d\n", pc);
 
     /* When the following line is hit, the variables contain the register values. */

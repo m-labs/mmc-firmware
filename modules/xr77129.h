@@ -119,7 +119,7 @@ void xr77129_read_status( xr77129_data_t * data );
 Bool xr77129_read_value( xr77129_data_t * data, uint8_t reg_address, uint16_t *read );
 uint8_t xr77129_write_value( xr77129_data_t * data, uint8_t reg_address, uint16_t value );
 void xr77129_dump_registers(void);
-void xr77129_flashops(void);
+uint8_t xr77129_check_flash( xr77129_data_t * data, const uint8_t * xr77129_config, uint32_t size );
 void xr77129_reset( xr77129_data_t * data );
 void xr77129_set_ready( xr77129_data_t * data , uint16_t status);
 uint8_t xr77129_flash_read( xr77129_data_t * data, uint16_t address, uint32_t size);
