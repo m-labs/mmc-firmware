@@ -36,6 +36,7 @@
 #include "fru.h"
 #include "led.h"
 #include "xr77129.h"
+#include "enet_17xx_40xx.h"
 
 /* payload states
  *   0 - no power

@@ -110,7 +110,6 @@ void vTaskXR77129( void *Parameters )
     xLastWakeTime = xTaskGetTickCount();
 
     vTaskDelay(2000);
-
     while (!xr77129_flashverified) {
     	xr77129_flashverified = xr77129_check_flash(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
     	vTaskDelay(500);
@@ -305,14 +304,13 @@ void vTaskXR77129_RTM( void *Parameters )
     /* Initialise the xLastWakeTime variable with the current time. */
     xLastWakeTime = xTaskGetTickCount();
 
-    vTaskDelay(3000);
+    vTaskDelay(5000);
     while (!xr77129_flashverified) {
     	uint8_t state = pcf8574_read_port();
     	if (state & RTM_GPIO_EN_DC_DC) {
     		xr77129_flashverified = xr77129_check_flash(&xr77129_data[1], xr77129_rtm_flash_cfg, sizeof(xr77129_rtm_flash_cfg)/sizeof(xr77129_rtm_flash_cfg[0]));
     	}
-
-    	vTaskDelay(2000);
+    	vTaskDelay(1000);
     }
 
     for (;;)
@@ -330,7 +328,7 @@ void vTaskXR77129_RTM( void *Parameters )
 //    	}
 
 //    	vTaskDelayUntil( &xLastWakeTime, xFrequency );
-    	vTaskDelay(1000);
+    	vTaskDelay(10000);
     }
 }
 

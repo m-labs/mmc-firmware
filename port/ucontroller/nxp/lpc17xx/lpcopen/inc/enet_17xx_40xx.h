@@ -80,8 +80,8 @@ typedef struct {
 typedef struct {
 	__IO uint32_t COMMAND;				/*!< Command register */
 	__I  uint32_t STATUS;				/*!< Status register */
-	ENET_TRANSFER_INFO_T RX;	/*!< Receive block registers */
-	ENET_TRANSFER_INFO_T TX;	/*!< Transmit block registers */
+	ENET_TRANSFER_INFO_T RX;			/*!< Receive block registers */
+	ENET_TRANSFER_INFO_T TX;			/*!< Transmit block registers */
 	uint32_t RESERVED0[10];
 	__I  uint32_t TSV0;					/*!< Transmit status vector 0 register */
 	__I  uint32_t TSV1;					/*!< Transmit status vector 1 register */
@@ -119,11 +119,11 @@ typedef struct {
  * @brief Ethernet register block structure
  */
 typedef struct {
-	ENET_MAC_T  MAC;				/*!< MAC registers */
+	ENET_MAC_T  MAC;					/*!< MAC registers */
 	uint32_t RESERVED1[45];
-	ENET_CONTROL_T CONTROL;		/*!< Control registers */
+	ENET_CONTROL_T CONTROL;				/*!< Control registers */
 	uint32_t RESERVED4[34];
-	ENET_RXFILTER_T RXFILTER;		/*!< RxFilter registers */
+	ENET_RXFILTER_T RXFILTER;			/*!< RxFilter registers */
 	uint32_t RESERVED6[882];
 	ENET_MODULE_CTRL_T MODULE_CONTROL;	/*!< Module Control registers */
 } LPC_ENET_T;

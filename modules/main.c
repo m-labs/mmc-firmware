@@ -37,6 +37,7 @@
 #include "watchdog.h"
 #include "uart_debug.h"
 #include "xr77129.h"
+
 #ifdef MODULE_RTM
 #include "rtm.h"
 #endif
@@ -98,6 +99,11 @@ void api_handler(uint8_t * data, uint8_t len)
  		xr77129_dump_registers();
 	} else if (!strcmp(cmd, "t")) {
 		xr77129_flash_read(&xr77129_data[1], 0, 10);
+	} else if (!strcmp(cmd, "i")) {
+		printf("phy_init\n");
+		phy_init();
+	} else if (!strcmp(cmd, "p")) {
+		phy_dump();
 	}
 }
 
@@ -109,15 +115,20 @@ void vCommandTask(void *pvParameters)
 
 	vTaskDelay(100);
 
-	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
+	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK) ))
 	{
 		printf("Power override\n");
 		pwr_override = true;
 		setDC_DC_ConvertersON();
 		rtm_power_level = 0x01;
-//		rtm_hardware_init();
-//		rtm_enable_payload_power();
-//		xr77129_init();
+#if 0
+		// run without rtm task
+		rtm_hardware_init();
+		rtm_enable_payload_power();
+
+		// run without xr task
+		xr77129_init();
+#endif
 	}
 
 	for (;;)
@@ -160,14 +171,14 @@ void vCommandTask(void *pvParameters)
 //			}
 //			else if (Rxbuf[0] == 'E')
 //			{
-//				phy_dump();
+
 //			}
 //			else if (Rxbuf[0] == 'I')
 //			{
 //				phy_init();
 //			} else if (Rxbuf[0] == 'x')
 //			{
-//				xr77129_flashops();
+////				xr77129_flashops();
 //			} else if (Rxbuf[0] == 'b') {
 //				uint8_t state = pcf8574_read_port();
 //				printf("pcf8574 state %d\n", state);
@@ -181,7 +192,7 @@ void vCommandTask(void *pvParameters)
 //			}
 //		}
 //
-//		vTaskDelay(100);
+//		vTaskDelay(1000);
 //	}
 }
 
@@ -198,6 +209,12 @@ int main( void )
     // I2C FIX for 1776
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
+
+	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_ENET);
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_ENET);
+	/* Reset ethernet peripheral */
+	Chip_ENET_Reset(LPC_ETHERNET);
+	for (int i = 0; i < 100; i++){}
 
 #ifdef MODULE_UART_DEBUG
     uart_init( UART_DEBUG );
