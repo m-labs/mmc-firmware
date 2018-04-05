@@ -7,134 +7,73 @@
 
 #include "eth_phy.h"
 #include "chip_lpc177x_8x.h"
-
 #include "enet_17xx_40xx.h"
-
-/*------------- Ethernet Media Access Controller (EMAC) ----------------------*/
-typedef struct
-{
-  __IO uint32_t MAC1;                   /* MAC Registers                      */
-  __IO uint32_t MAC2;
-  __IO uint32_t IPGT;
-  __IO uint32_t IPGR;
-  __IO uint32_t CLRT;
-  __IO uint32_t MAXF;
-  __IO uint32_t SUPP;
-  __IO uint32_t TEST;
-  __IO uint32_t MCFG;
-  __IO uint32_t MCMD;
-  __IO uint32_t MADR;
-  __O  uint32_t MWTD;
-  __I  uint32_t MRDD;
-  __I  uint32_t MIND;
-       uint32_t RESERVED0[2];
-  __IO uint32_t SA0;
-  __IO uint32_t SA1;
-  __IO uint32_t SA2;
-       uint32_t RESERVED1[45];
-  __IO uint32_t Command;                /* Control Registers                  */
-  __I  uint32_t Status;
-  __IO uint32_t RxDescriptor;
-  __IO uint32_t RxStatus;
-  __IO uint32_t RxDescriptorNumber;
-  __I  uint32_t RxProduceIndex;
-  __IO uint32_t RxConsumeIndex;
-  __IO uint32_t TxDescriptor;
-  __IO uint32_t TxStatus;
-  __IO uint32_t TxDescriptorNumber;
-  __IO uint32_t TxProduceIndex;
-  __I  uint32_t TxConsumeIndex;
-       uint32_t RESERVED2[10];
-  __I  uint32_t TSV0;
-  __I  uint32_t TSV1;
-  __I  uint32_t RSV;
-       uint32_t RESERVED3[3];
-  __IO uint32_t FlowControlCounter;
-  __I  uint32_t FlowControlStatus;
-       uint32_t RESERVED4[34];
-  __IO uint32_t RxFilterCtrl;           /* Rx Filter Registers                */
-  __I  uint32_t RxFilterWoLStatus;
-  __O  uint32_t RxFilterWoLClear;
-       uint32_t RESERVED5;
-  __IO uint32_t HashFilterL;
-  __IO uint32_t HashFilterH;
-       uint32_t RESERVED6[882];
-  __I  uint32_t IntStatus;              /* Module Control Registers           */
-  __IO uint32_t IntEnable;
-  __O  uint32_t IntClear;
-  __O  uint32_t IntSet;
-       uint32_t RESERVED7;
-  __IO uint32_t PowerDown;
-       uint32_t RESERVED8;
-  __IO uint32_t Module_ID;
-} LPC_EMAC_TypeDef;
-
-#define LPC_EMAC              ((LPC_EMAC_TypeDef *) LPC_ENET_BASE )
 
 void phy_init(void)
 {
-	printf("etyhernet %d\n", ((LPC_ENET_T *) LPC_ETHERNET));
+	// init pins
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 0, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 1, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 4, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 8, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 9, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 10, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 14, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 15, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 16, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 17, (IOCON_FUNC1 | IOCON_MODE_INACT));
 
-	LPC_EMAC->TxDescriptorNumber;
+	Chip_ENET_DeInit(LPC_ETHERNET);
+	Chip_ENET_Init(LPC_ETHERNET, true);
 
-//	pENET->CONTROL.COMMAND = ENET_COMMAND_REGRESET | ENET_COMMAND_TXRESET | ENET_COMMAND_RXRESET |
-//							 ENET_COMMAND_PASSRUNTFRAME;
+	// init ETH PHY in RGMII mode
+	// RESET PHY
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RESETn), PIN_NUMBER(GPIO_PHY_RESETn), GPIO_LEVEL_LOW );
 
-//	// init ETH PHY in RGMII mode
-//	// RESET PHY
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RESETn), PIN_NUMBER(GPIO_PHY_RESETn), GPIO_LEVEL_LOW );
-//
-//	// SET RGMII = 1 -> RGMII mode
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_LOW );
-//
-//	// PHY SPD 0 = 0
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_CFG_SPD0), PIN_NUMBER(GPIO_PHY_CFG_SPD0), GPIO_LEVEL_LOW );
-//
-//	// PHY SPD 1 = 1
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_CFG_SPD1), PIN_NUMBER(GPIO_PHY_CFG_SPD1), GPIO_LEVEL_HIGH );
-//
-//	// CFG DDR = 1
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_CFG_DDR), PIN_NUMBER(GPIO_PHY_CFG_DDR), GPIO_LEVEL_HIGH );
-//
-//	// un-RESET PHY
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RESETn), PIN_NUMBER(GPIO_PHY_RESETn), GPIO_LEVEL_HIGH );
-//
-//	// MII LED OFF
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_MII_MODE_LED), PIN_NUMBER(GPIO_PHY_MII_MODE_LED), GPIO_LEVEL_LOW );
-//
-//	// configure mdio pins
-//	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 16, (IOCON_FUNC1));
-//	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 17, (IOCON_FUNC1));
-//
-//	Chip_ENET_DeInit(LPC_ETHERNET);
-//	Chip_ENET_Init(LPC_ETHERNET, true);
-//
-//	// select page 2
-//	phy_write(0x04, 31, 0x12);
-//	printf("31 %d\n", 0, phy_read(0x4, 31));
-//
-//	// power down Rx CDR
-//	phy_write(0x04,  16, 0x4004);
-//
-//	asm("NOP");
-//	asm("NOP");
-//	asm("NOP");
-//
-//	// power up Rx CDR
-//	phy_write(0x04, 16, 0x4000);
-//	phy_write(0x04, 0, 0x8000); // reset the data path BMCR.DP_RST
-//
-//	// select page 0
-//	phy_write(0x04,  31, 0x10);
-//
-//	// force RGMII, TXCLKEN=0
-//	phy_write(0x04,  18, 0b1000100010000000 );
-//
-//	printf("GMIICR mod %d 0x%x\n", 18, phy_read(0x4, 18));
-//	printf("PHY init done\n");
-//
-//	// SET RGMII = 1 -> FPGA mode
-//	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
+	// SET RGMII = 1 -> RGMII mode
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_LOW );
+
+	// PHY SPD 0 = 0
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_CFG_SPD0), PIN_NUMBER(GPIO_PHY_CFG_SPD0), GPIO_LEVEL_LOW );
+
+	// PHY SPD 1 = 1
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_CFG_SPD1), PIN_NUMBER(GPIO_PHY_CFG_SPD1), GPIO_LEVEL_HIGH );
+
+	// CFG DDR = 1
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_CFG_DDR), PIN_NUMBER(GPIO_PHY_CFG_DDR), GPIO_LEVEL_HIGH );
+
+	// un-RESET PHY
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RESETn), PIN_NUMBER(GPIO_PHY_RESETn), GPIO_LEVEL_HIGH );
+
+	// MII LED OFF
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_MII_MODE_LED), PIN_NUMBER(GPIO_PHY_MII_MODE_LED), GPIO_LEVEL_LOW );
+
+	// select page 2
+	phy_write(0x04, 31, 0x12);
+	printf("31 %d\n", 0, phy_read(0x4, 31));
+
+	// power down Rx CDR
+	phy_write(0x04,  16, 0x4004);
+
+	asm("NOP");
+	asm("NOP");
+	asm("NOP");
+
+	// power up Rx CDR
+	phy_write(0x04, 16, 0x4000);
+	phy_write(0x04, 0, 0x8000); // reset the data path BMCR.DP_RST
+
+	// select page 0
+	phy_write(0x04,  31, 0x10);
+
+	// force RGMII, TXCLKEN=0
+	phy_write(0x04,  18, 0b1000100010000000 );
+
+	printf("GMIICR mod %d 0x%x\n", 18, phy_read(0x4, 18));
+	printf("PHY init done\n");
+
+	// SET RGMII = 1 -> FPGA mode
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
 }
 
 uint16_t phy_read(uint16_t bPhyAddr, uint8_t PhyReg)

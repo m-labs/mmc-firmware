@@ -47,72 +47,8 @@ extern void setDC_DC_ConvertersON();
 bool pwr_override = false;
 extern volatile uint8_t rtm_power_level;
 
-#define DATA_BYTES 64
-
-extern char _pvHeapStart;
-extern char _vStackTop;
-#define heap_low _pvHeapStart
-#define heap_top _vStackTop
-
-char *heap_end = 0;
-caddr_t _sbrk(int incr) {
- char *prev_heap_end;
-
- if (heap_end == 0) {
-	 heap_end = &heap_low;
- }
- prev_heap_end = heap_end;
-
- if (heap_end + incr > &heap_top) {
-	 /* Heap and stack collision */
-	 return (caddr_t)0;
- }
-
- heap_end += incr;
- return (caddr_t) prev_heap_end;
-}
-
-extern xr77129_data_t xr77129_data[2];
-
-void api_handler(uint8_t * data, uint8_t len)
-{
-    char cmd[10], hex[64];
-    int a1, a2, a3, a4;
-    sscanf((char*) data, "%s %d %d %d %d", cmd, &a1, &a2, &a3, &a4);
-
-    if (!strcmp(cmd, "help")) {
-		printf("Help command\n");
-	} else if (!strcmp(cmd, "clear")) {
-		if (a1 >= 0 && a1 <= 6) xr77129_flash_page_clear(&xr77129_data[0], a1);
-	} else if (!strcmp(cmd, "erase")) {
-		if (a1 >= 0 && a1 <= 6) xr77129_flash_page_erase(&xr77129_data[0], a1);
- 	} else if (!strcmp(cmd, "write")) {
- 		xr77129_flash_write(&xr77129_data[0], a1, a2, a3);
- 	} else if (!strcmp(cmd, "read")) {
- 		if ((a2 % 2 == 0) && a1 < 2) xr77129_flash_read(&xr77129_data[a1], a2, a3);
- 	} else if (!strcmp(cmd, "ready")) {
- 		xr77129_set_ready(&xr77129_data[1], a1);
- 	} else if (!strcmp(cmd, "reset")) {
- 		xr77129_reset(&xr77129_data[0]);
- 	} else if (!strcmp(cmd, "full")) {
-// 		xr77129_check_flash();
- 		xr77129_dump_registers();
-	} else if (!strcmp(cmd, "t")) {
-		xr77129_flash_read(&xr77129_data[1], 0, 10);
-	} else if (!strcmp(cmd, "i")) {
-		printf("phy_init\n");
-		phy_init();
-	} else if (!strcmp(cmd, "p")) {
-		phy_dump();
-	}
-}
-
 void vCommandTask(void *pvParameters)
 {
-	uint8_t data_array[DATA_BYTES];
-	uint8_t index = 0;
-	uint8_t chr;
-
 	vTaskDelay(100);
 
 	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK) ))
@@ -131,69 +67,37 @@ void vCommandTask(void *pvParameters)
 #endif
 	}
 
+	uint8_t Rxbuf[2];
+	vTaskDelay(100);
+
+    if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
+	{
+    	printf("Power override\n");
+    	pwr_override = true;
+    	setDC_DC_ConvertersON();
+    	rtm_power_level = 0x01;
+	}
+
 	for (;;)
 	{
-		if (Chip_UART_Read(LPC_UART3, &chr, 1))
+		if( Chip_UART_Read(LPC_UART3, Rxbuf, 1) )
 		{
-			data_array[index++] = chr;
-			if ((data_array[index - 1] == '\r') || (index >= (DATA_BYTES)))
+			if (Rxbuf[0] == 'P')
 			{
-				data_array[index] = '\0';
-				api_handler(data_array, index);
-				index = 0;
+				xr77129_dump_registers();
+			}
+			else if (Rxbuf[0] == 'E')
+			{
+				phy_dump();
+			}
+			else if (Rxbuf[0] == 'I')
+			{
+				phy_init();
 			}
 		}
 
-		vTaskDelay(50);
+		vTaskDelay(1000);
 	}
-
-//	uint8_t Rxbuf[2];
-//	uint16_t addr = 0x00;
-//	static uint8_t cnt = 0;
-//
-//	vTaskDelay(100);
-//
-//    if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
-//	{
-//    	printf("Power override\n");
-//    	pwr_override = true;
-//    	setDC_DC_ConvertersON();
-//    	rtm_power_level = 0x01;
-//	}
-//
-//	for (;;)
-//	{
-//		if( Chip_UART_Read(LPC_UART3, Rxbuf, 1) )
-//		{
-//			if (Rxbuf[0] == 'P')
-//			{
-//				xr77129_dump_registers();
-//			}
-//			else if (Rxbuf[0] == 'E')
-//			{
-
-//			}
-//			else if (Rxbuf[0] == 'I')
-//			{
-//				phy_init();
-//			} else if (Rxbuf[0] == 'x')
-//			{
-////				xr77129_flashops();
-//			} else if (Rxbuf[0] == 'b') {
-//				uint8_t state = pcf8574_read_port();
-//				printf("pcf8574 state %d\n", state);
-//
-//			} else if (Rxbuf[0] == 'n') {
-//				if (cnt++ % 2 == 0) {
-//					pcf8574_set_port_low( 1 << RTM_GPIO_LED_BLUE );
-//				} else {
-//					pcf8574_set_port_high( 1 << RTM_GPIO_LED_BLUE );
-//				}
-//			}
-//		}
-//
-//		vTaskDelay(1000);
-//	}
 }
 
 /*-----------------------------------------------------------*/
@@ -209,12 +113,6 @@ int main( void )
     // I2C FIX for 1776
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
-
-	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_ENET);
-	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_ENET);
-	/* Reset ethernet peripheral */
-	Chip_ENET_Reset(LPC_ETHERNET);
-	for (int i = 0; i < 100; i++){}
 
 #ifdef MODULE_UART_DEBUG
     uart_init( UART_DEBUG );
