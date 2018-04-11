@@ -48,6 +48,8 @@ void phy_init(void)
 	// MII LED OFF
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_MII_MODE_LED), PIN_NUMBER(GPIO_PHY_MII_MODE_LED), GPIO_LEVEL_LOW );
 
+	vTaskDelay(100);
+
 	// select page 2
 	phy_write(0x04, 31, 0x12);
 	printf("31 %d\n", 0, phy_read(0x4, 31));
@@ -55,9 +57,7 @@ void phy_init(void)
 	// power down Rx CDR
 	phy_write(0x04,  16, 0x4004);
 
-	asm("NOP");
-	asm("NOP");
-	asm("NOP");
+	vTaskDelay(100);
 
 	// power up Rx CDR
 	phy_write(0x04, 16, 0x4000);

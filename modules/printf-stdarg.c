@@ -187,9 +187,9 @@ int printf(const char *format, ...)
 
     va_start( args, format );
 
-//    portENTER_CRITICAL();
+    portENTER_CRITICAL();
     int ret = print( 0, format, args );
-//    portEXIT_CRITICAL();
+    portEXIT_CRITICAL();
 
     return ret;
 }

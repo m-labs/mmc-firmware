@@ -37,6 +37,8 @@
 #include "watchdog.h"
 #include "uart_debug.h"
 #include "xr77129.h"
+#include "xr77129_flash_cfg.h"
+#include "pcf8574.h"
 
 #ifdef MODULE_RTM
 #include "rtm.h"
@@ -46,6 +48,7 @@
 extern void setDC_DC_ConvertersON();
 bool pwr_override = false;
 extern volatile uint8_t rtm_power_level;
+extern xr77129_data_t xr77129_data[2];
 
 void vCommandTask(void *pvParameters)
 {
@@ -93,6 +96,22 @@ void vCommandTask(void *pvParameters)
 			else if (Rxbuf[0] == 'I')
 			{
 				phy_init();
+			}
+			else if (Rxbuf[0] == 'R')
+			{
+				NVIC_SystemReset();
+			} else if (Rxbuf[0] == 'H') {
+				if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK))) {
+					xr77129_check_flash(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
+				}
+			} else if (Rxbuf[0] == 'J') {
+				if (!gpio_read_pin( PIN_PORT(GPIO_RTM_PS), PIN_NUMBER(GPIO_RTM_PS) ) && gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)) ) {
+					vTaskDelay(2000);
+					uint8_t state = pcf8574_read_port();
+					if (!(state & (1 << RTM_GPIO_EN_DC_DC))) {
+						xr77129_check_flash(&xr77129_data[1], xr77129_rtm_flash_cfg, sizeof(xr77129_rtm_flash_cfg)/sizeof(xr77129_rtm_flash_cfg[0]));
+					}
+				}
 			}
 		}
 

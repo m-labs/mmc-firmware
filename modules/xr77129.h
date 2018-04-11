@@ -124,5 +124,6 @@ void xr77129_reset( xr77129_data_t * data );
 void xr77129_set_ready( xr77129_data_t * data , uint16_t status);
 uint8_t xr77129_flash_read( xr77129_data_t * data, uint16_t address, uint32_t size);
 uint8_t xr77129_flash_write ( xr77129_data_t * data, uint16_t address, uint8_t flash_data, uint8_t flash_data2);
+uint8_t xr77129_check_flash( xr77129_data_t * data, const uint8_t * xr77129_config, uint32_t size );
 
 #endif /* MODULES_XR77129_H_ */
