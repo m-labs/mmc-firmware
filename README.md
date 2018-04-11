@@ -2,6 +2,14 @@
 ![Travis build status](https://travis-ci.org/lnls-dig/openMMC.svg?branch=master)
 Open Source modular IPM Controller firmware
 
+# Serial port Commands
+P - dump EXAR registers
+E - dump PHY registers
+I - PHY initialization
+R - Systemi Reset
+H - Check AMC EXAR configuration
+J - Check RTM EXAR configuration
+
 # Sayma PORT
 
 Since this build is in state of debugging, some features can be disabled changed e.g:
