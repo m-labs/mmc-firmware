@@ -97,6 +97,8 @@ void hotswap_init( void )
     }
 }
 
+extern bool pwr_override;
+
 void vTaskHotSwap( void *Parameters )
 {
     /* Init old_state with a different value, so that the uC always send its state on startup */
@@ -150,6 +152,7 @@ void vTaskHotSwap( void *Parameters )
 #ifdef BENCH_TEST
             old_state_amc = new_state_amc;
 #endif
+            if (pwr_override) old_state_amc = new_state_amc;
         }
 
 #ifdef MODULE_RTM
@@ -164,6 +167,7 @@ void vTaskHotSwap( void *Parameters )
         }
 
         if ( new_state_rtm ^ old_state_rtm ) {
+
             if ( new_state_rtm == 0 ) {
                 printf("RTM Hotswap handle pressed!\n");
             } else {
@@ -175,9 +179,11 @@ void vTaskHotSwap( void *Parameters )
                 hotswap_clear_mask_bit( HOTSWAP_RTM, 1 << (!new_state_rtm) );
                 old_state_rtm = new_state_rtm;
             }
+
 #ifdef BENCH_TEST
             old_state_rtm = new_state_rtm;
 #endif
+            if (pwr_override) old_state_rtm = new_state_rtm;
         }
 #endif
     }
@@ -185,7 +191,8 @@ void vTaskHotSwap( void *Parameters )
 
 ipmb_error hotswap_send_event( sensor_t *sensor, uint8_t evt )
 {
-    return ipmi_event_send( sensor, ASSERTION_EVENT, &evt, sizeof( evt ) );
+	uint32_t err = ipmi_event_send( sensor, ASSERTION_EVENT, &evt, sizeof( evt ) );
+    return err;
 }
 
 void hotswap_clear_mask_bit( uint8_t fru, uint8_t mask )

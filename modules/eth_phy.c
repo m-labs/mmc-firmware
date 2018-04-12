@@ -7,9 +7,25 @@
 
 #include "eth_phy.h"
 #include "chip_lpc177x_8x.h"
+#include "enet_17xx_40xx.h"
 
 void phy_init(void)
 {
+	// init pins
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 0, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 1, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 4, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 8, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 9, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 10, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 14, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 15, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 16, (IOCON_FUNC1 | IOCON_MODE_INACT));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0x1, 17, (IOCON_FUNC1 | IOCON_MODE_INACT));
+
+	Chip_ENET_DeInit(LPC_ETHERNET);
+	Chip_ENET_Init(LPC_ETHERNET, true);
+
 	// init ETH PHY in RGMII mode
 	// RESET PHY
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RESETn), PIN_NUMBER(GPIO_PHY_RESETn), GPIO_LEVEL_LOW );
@@ -32,19 +48,20 @@ void phy_init(void)
 	// MII LED OFF
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_MII_MODE_LED), PIN_NUMBER(GPIO_PHY_MII_MODE_LED), GPIO_LEVEL_LOW );
 
+	vTaskDelay(100);
+
 	// select page 2
-	phy_write(0x04,  31, 0x12);
+	phy_write(0x04, 31, 0x12);
+	printf("31 %d\n", 0, phy_read(0x4, 31));
 
 	// power down Rx CDR
 	phy_write(0x04,  16, 0x4004);
 
-	asm("NOP");
-	asm("NOP");
-	asm("NOP");
+	vTaskDelay(100);
 
 	// power up Rx CDR
-	phy_write(0x04,  16, 0x4000);
-	phy_write(0x04,  0, 0x8000); // reset the data path BMCR.DP_RST
+	phy_write(0x04, 16, 0x4000);
+	phy_write(0x04, 0, 0x8000); // reset the data path BMCR.DP_RST
 
 	// select page 0
 	phy_write(0x04,  31, 0x10);
@@ -63,7 +80,7 @@ uint16_t phy_read(uint16_t bPhyAddr, uint8_t PhyReg)
 {
 	unsigned int tout;
 
-	LPC_ETHERNET->MAC.MADR = ((bPhyAddr & 0x1F) << 8 )| (PhyReg & 0x1F);
+	LPC_ETHERNET->MAC.MADR = ((bPhyAddr & 0x1F) << 8 ) | (PhyReg & 0x1F);
 	LPC_ETHERNET->MAC.MCMD = ENET_MCMD_READ;
 
 	/* Wait until operation completed */

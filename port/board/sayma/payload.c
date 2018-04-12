@@ -36,6 +36,7 @@
 #include "fru.h"
 #include "led.h"
 #include "xr77129.h"
+#include "eth_phy.h"
 
 /* payload states
  *   0 - no power
@@ -186,6 +187,7 @@ void vTaskPayload( void *pvParameters )
 
     /* Payload DCDCs good flag */
     uint8_t DCDC_good = 0;
+    uint8_t PHY_good = 0;
 
     uint8_t QUIESCED_req = 0;
     EventBits_t current_evt;
@@ -278,6 +280,12 @@ void vTaskPayload( void *pvParameters )
             break;
 
         case PAYLOAD_FPGA_BOOTING:
+
+        	if (!PHY_good) {
+				phy_init();
+				PHY_good = true;
+			}
+
         	// ||  || DCDC_good == 0
         	// || PP_good == 0
             if ( QUIESCED_req == 1 ) {
@@ -286,6 +294,7 @@ void vTaskPayload( void *pvParameters )
             break;
 
         case PAYLOAD_SWITCHING_OFF:
+        	PHY_good = false;
             setDC_DC_ConvertersOFF();
             hotswap_set_mask_bit( HOTSWAP_AMC, HOTSWAP_BACKEND_PWR_SHUTDOWN_MASK );
             hotswap_send_event( hotswap_amc_sensor, HOTSWAP_STATE_BP_SDOWN );

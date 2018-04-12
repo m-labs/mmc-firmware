@@ -108,7 +108,6 @@ i2c_chip_mapping_t i2c_chip_map[I2C_CHIP_CNT] = {
 
 	[CHIP_ID_RTM_XR77129]		 = { I2C_BUS_RTM_EXAR_ID, 0x28 }
 #endif
-
 };
 
 bool i2c_set_mux_bus( uint8_t bus_id, i2c_mux_state_t *i2c_mux, int8_t new_state )
@@ -121,7 +120,7 @@ bool i2c_set_mux_bus( uint8_t bus_id, i2c_mux_state_t *i2c_mux, int8_t new_state
     if (new_state >= RTM_MUX_BUS_NUM)
     {
     	rtm_mux = 1;
-    	rtm_tca_channel = 1 << (new_state - RTM_MUX_BUS_NUM) ;
+    	rtm_tca_channel = 1 << (new_state - RTM_MUX_BUS_NUM);
     	new_state = i2c_bus_map[I2C_BUS_RTM_ID].mux_bus;
     }
 
@@ -131,22 +130,24 @@ bool i2c_set_mux_bus( uint8_t bus_id, i2c_mux_state_t *i2c_mux, int8_t new_state
         uint8_t tca_channel = 1 << new_state;
 
         /* Select desired channel in the I2C switch */
-        if( xI2CMasterWrite( i2c_bus_map[i2c_chip_map[CHIP_ID_MUX_MMC].bus_id].i2c_interface, i2c_chip_map[CHIP_ID_MUX_MMC].i2c_address, &tca_channel, 1 ) != 1 )
+        if(xI2CMasterWrite( i2c_bus_map[i2c_chip_map[CHIP_ID_MUX_MMC].bus_id].i2c_interface, i2c_chip_map[CHIP_ID_MUX_MMC].i2c_address, &tca_channel, 1 ) != 1 )
         {
-        	if (rtm_mux)
-        	{
-        	/* Change RTM MUX state if bus is behind RTM MUX */
-            	if( xI2CMasterWrite( i2c_bus_map[i2c_chip_map[CHIP_ID_MUX_MMC].bus_id].i2c_interface, i2c_chip_map[CHIP_ID_MUX_MMC].i2c_address, &rtm_tca_channel, 1 ) != 1 )
-            	{
-                    xSemaphoreGive( i2c_mux->semaphore );
-                    return false;
-            	}
-        	}
-
         	/* We failed to configure the I2C Mux, release the semaphore */
             xSemaphoreGive( i2c_mux->semaphore );
             return false;
         }
+
+        if (rtm_mux)
+		{
+			/* Change RTM MUX state if bus is behind RTM MUX */
+			if( xI2CMasterWrite( i2c_bus_map[i2c_chip_map[CHIP_ID_MUX_MMC].bus_id].i2c_interface, i2c_chip_map[CHIP_ID_RTM_TCA9548].i2c_address, &rtm_tca_channel, 1 ) != 1 )
+			{
+				xSemaphoreGive( i2c_mux->semaphore );
+				return false;
+			}
+
+//			printf("rtm mux set ok i:%d a:%d v:%d\n", i2c_bus_map[i2c_chip_map[CHIP_ID_MUX_MMC].bus_id].i2c_interface, i2c_chip_map[CHIP_ID_RTM_TCA9548].i2c_address, rtm_tca_channel);
+		}
     }
 
     i2c_mux->state = new_state;

@@ -71,13 +71,12 @@ STATIC INLINE void resetENET(LPC_ENET_T *pENET)
 void Chip_ENET_Init(LPC_ENET_T *pENET, bool useRMII)
 {
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_ENET);
-	resetENET(pENET);
+//	resetENET(pENET);
 
 	/* Initial MAC configuration for  full duplex,
 	   100Mbps, inter-frame gap use default values */
 	pENET->MAC.MAC1 = ENET_MAC1_PARF;
 	pENET->MAC.MAC2 = ENET_MAC2_FULLDUPLEX | ENET_MAC2_CRCEN | ENET_MAC2_PADCRCEN;
-
 	if (useRMII) {
 		pENET->CONTROL.COMMAND = ENET_COMMAND_FULLDUPLEX | ENET_COMMAND_PASSRUNTFRAME | ENET_COMMAND_RMII;
 	}

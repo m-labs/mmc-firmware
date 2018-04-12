@@ -37,31 +37,85 @@
 #include "watchdog.h"
 #include "uart_debug.h"
 #include "xr77129.h"
+#include "xr77129_flash_cfg.h"
+#include "pcf8574.h"
+
 #ifdef MODULE_RTM
 #include "rtm.h"
 #endif
 
+/* power override variables */
+extern void setDC_DC_ConvertersON();
+bool pwr_override = false;
+extern volatile uint8_t rtm_power_level;
+extern xr77129_data_t xr77129_data[2];
+
 void vCommandTask(void *pvParameters)
 {
+	vTaskDelay(100);
+
+	if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK) ))
+	{
+		printf("Power override\n");
+		pwr_override = true;
+		setDC_DC_ConvertersON();
+		rtm_power_level = 0x01;
+#if 0
+		// run without rtm task
+		rtm_hardware_init();
+		rtm_enable_payload_power();
+
+		// run without xr task
+		xr77129_init();
+#endif
+	}
+
 	uint8_t Rxbuf[2];
+	vTaskDelay(100);
+
+    if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
+	{
+    	printf("Power override\n");
+    	pwr_override = true;
+    	setDC_DC_ConvertersON();
+    	rtm_power_level = 0x01;
+	}
 
 	for (;;)
 	{
 		if( Chip_UART_Read(LPC_UART3, Rxbuf, 1) )
 		{
-			if (Rxbuf[0] == 'p')
+			if (Rxbuf[0] == 'P')
 			{
 				xr77129_dump_registers();
 			}
-			else if (Rxbuf[0] == 'e')
+			else if (Rxbuf[0] == 'E')
 			{
 				phy_dump();
 			}
-			else if (Rxbuf[0] == 'i')
+			else if (Rxbuf[0] == 'I')
 			{
 				phy_init();
 			}
+			else if (Rxbuf[0] == 'R')
+			{
+				NVIC_SystemReset();
+			} else if (Rxbuf[0] == 'H') {
+				if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK))) {
+					xr77129_check_flash(&xr77129_data[0], xr77129_amc_flash_cfg, sizeof(xr77129_amc_flash_cfg)/sizeof(xr77129_amc_flash_cfg[0]));
+				}
+			} else if (Rxbuf[0] == 'J') {
+				if (!gpio_read_pin( PIN_PORT(GPIO_RTM_PS), PIN_NUMBER(GPIO_RTM_PS) ) && gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)) ) {
+					vTaskDelay(2000);
+					uint8_t state = pcf8574_read_port();
+					if (!(state & (1 << RTM_GPIO_EN_DC_DC))) {
+						xr77129_check_flash(&xr77129_data[1], xr77129_rtm_flash_cfg, sizeof(xr77129_rtm_flash_cfg)/sizeof(xr77129_rtm_flash_cfg[0]));
+					}
+				}
+			}
 		}
+
+		vTaskDelay(1000);
 	}
 }
 
@@ -84,10 +138,11 @@ int main( void )
 #endif
 
     printf("openMMC Starting!\n");
+    printf("build date %s %s\n", __DATE__, __TIME__);
     printf("CPU clock = %d MHz\n", (int) (SystemCoreClock / 1000000));
     printf("Selected board: %s\n", STR(TARGET_BOARD_NAME));
 
-#if BENCH_TEST
+#ifdef BENCH_TEST
     printf("BENCH Test active\n");
 #endif
 
@@ -101,7 +156,6 @@ int main( void )
 #ifdef MODULE_FRU
     fru_init(FRU_AMC);
 #endif
-
 #ifdef MODULE_SDR
     sdr_init();
 #endif
@@ -111,9 +165,6 @@ int main( void )
 #ifdef MODULE_PAYLOAD
     payload_init();
 #endif
-#ifdef MODULE_ETHERNET
-    phy_init();
-#endif
 #ifdef MODULE_SCANSTA1101
     scansta1101_init();
 #endif
@@ -121,7 +172,7 @@ int main( void )
     scansta112_init();
 #endif
 #ifdef MODULE_FPGA_SPI
-//    fpga_spi_init();
+    fpga_spi_init();
 #endif
 #ifdef MODULE_RTM
     rtm_manage_init();
@@ -163,7 +214,6 @@ void HardFault_Handler(void)
 	        " handler2_address_const: .word prvGetRegistersFromStack    \n"
 	    );
 
-
 	while(1) {}
 }
 
@@ -192,6 +242,7 @@ void prvGetRegistersFromStack( uint32_t *pulFaultStackAddress )
     pc = pulFaultStackAddress[ 6 ];
     psr = pulFaultStackAddress[ 7 ];
 
+//    NVIC_SystemReset();
     printf("Hardfault @ %d\n", pc);
 
     /* When the following line is hit, the variables contain the register values. */

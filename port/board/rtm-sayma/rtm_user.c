@@ -40,13 +40,12 @@ void rtm_enable_payload_power( void )
 
 	if (!gpio_read_pin( PIN_PORT(GPIO_RTM_PS), PIN_NUMBER(GPIO_RTM_PS) ))
 	{
+		gpio_set_pin_state( PIN_PORT(GPIO_EN_RTM_PWR), PIN_NUMBER(GPIO_EN_RTM_PWR), 1 );
+		rtm_enable_dcdc();
+
 		pcf8574_set_port_high( 1 << RTM_GPIO_LED_BLUE );
 		pcf8574_set_port_low( 1 << RTM_GPIO_LED_RED );
 		pcf8574_set_port_low( 1 << RTM_GPIO_LED_GREEN );
-
-		gpio_set_pin_state( PIN_PORT(GPIO_EN_RTM_PWR), PIN_NUMBER(GPIO_EN_RTM_PWR), 1 );
-
-		rtm_enable_dcdc();
 	}
 }
 
@@ -68,12 +67,27 @@ void rtm_disable_payload_power( void )
 
 void rtm_enable_dcdc( void )
 {
-	pcf8574_set_port_low( 1 << RTM_GPIO_EN_DC_DC );
+	uint8_t i2c_addr, i2c_id;
+	uint8_t status;
+
+	printf("DCDC en\n");
+
+	if ( i2c_take_by_chipid( CHIP_ID_RTM_PCF8574A, &i2c_addr, &i2c_id, (TickType_t) portMAX_DELAY) ) {
+
+		xI2CMasterRead(i2c_id, i2c_addr, &status, 1);
+		vTaskDelay(10);
+
+		uint8_t data = status & (~(1 << RTM_GPIO_EN_DC_DC)) ;
+		xI2CMasterWrite(i2c_id, i2c_addr, &data, sizeof(data));
+
+		i2c_give(i2c_id);
+	}
 }
 
 uint8_t rtm_get_hotswap_handle_status( uint8_t *state )
 {
 	uint8_t result = pcf8574_read_pin( RTM_GPIO_HOTSWAP_HANDLE );
+
 	if (result == PCF8574_READ_ERROR)
 		return false;
 
