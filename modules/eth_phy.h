@@ -29,5 +29,6 @@ void phy_init(void);
 uint16_t phy_read(uint16_t bPhyAddr, uint8_t PhyReg);
 void phy_write(uint16_t bPhyAddr,uint8_t PhyReg, uint16_t Value);
 void phy_dump(void);
+void phy_delay_set(void);
 
 #endif /* MODULES_ETH_PHY_H_ */

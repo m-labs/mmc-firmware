@@ -97,6 +97,10 @@ void vCommandTask(void *pvParameters)
 			{
 				phy_init();
 			}
+			else if (Rxbuf[0] == 'Q')
+			{
+				phy_delay_set();
+			}
 			else if (Rxbuf[0] == 'R')
 			{
 				NVIC_SystemReset();

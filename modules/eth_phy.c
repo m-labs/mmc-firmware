@@ -116,6 +116,22 @@ void phy_write(uint16_t bPhyAddr,uint8_t PhyReg, uint16_t Value)
 	}
 }
 
+void phy_delay_set(void)
+{
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_LOW );
+
+	uint16_t value = phy_read(0x4, 4);
+
+	// set PAUSE to 11
+	value |= 1UL << 8;
+	value |= 1UL << 7;
+
+	phy_write(0x4, 4, value);
+
+	//SET RGMII = 1 -> RMII mode
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
+}
+
 void phy_dump(void)
 {
 	//SET RGMII = 1 -> MII mode
