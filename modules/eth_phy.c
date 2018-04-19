@@ -118,6 +118,8 @@ void phy_write(uint16_t bPhyAddr,uint8_t PhyReg, uint16_t Value)
 
 void phy_delay_set(void)
 {
+	printf("Setting PHY Delay\n");
+
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_LOW );
 
 	uint16_t value = phy_read(0x4, 4);
@@ -180,4 +182,16 @@ void phy_dump(void)
 
 	//SET RGMII = 1 -> RMII mode
 	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
+}
+
+void phy_scan(void)
+{
+	uint16_t recv = 0x0;
+	for (int i = 0; i < 32; i++)
+	{
+		phy_write(i,  31, 0x10);
+		recv = phy_read(i, 18);
+		if (recv != 0xFFFF) printf("PHY Scan [0x%02X GMIICR] = 0x%02X\n", i, recv);
+	}
+	printf("Scan done\n");
 }

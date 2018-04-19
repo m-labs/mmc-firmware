@@ -101,6 +101,10 @@ void vCommandTask(void *pvParameters)
 			{
 				phy_delay_set();
 			}
+			else if (Rxbuf[0] == 'S')
+			{
+				phy_scan();
+			}
 			else if (Rxbuf[0] == 'R')
 			{
 				NVIC_SystemReset();
