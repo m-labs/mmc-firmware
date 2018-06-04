@@ -50,18 +50,18 @@ void phy_init(void)
 
 	vTaskDelay(100);
 
-	// select page 2
-	phy_write(0x04, 31, 0x12);
-	printf("31 %d\n", 0, phy_read(0x4, 31));
+//	// select page 2
+//	phy_write(0x04, 31, 0x12);
+//	printf("31 %d\n", 0, phy_read(0x4, 31));
 
-	// power down Rx CDR
-	phy_write(0x04,  16, 0x4004);
-
-	vTaskDelay(100);
-
-	// power up Rx CDR
-	phy_write(0x04, 16, 0x4000);
-	phy_write(0x04, 0, 0x8000); // reset the data path BMCR.DP_RST
+//	// power down Rx CDR
+//	phy_write(0x04,  16, 0x4004);
+//
+//	vTaskDelay(100);
+//
+//	// power up Rx CDR
+//	phy_write(0x04, 16, 0x4000);
+//	phy_write(0x04, 0, 0x8000); // reset the data path BMCR.DP_RST
 
 	// select page 0
 	phy_write(0x04,  31, 0x10);

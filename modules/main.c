@@ -105,6 +105,15 @@ void vCommandTask(void *pvParameters)
 			{
 				phy_scan();
 			}
+			else if (Rxbuf[0] == '@')
+			{
+				Chip_IAP_ReinvokeISP();
+			}
+			else if (Rxbuf[0] == 'Z')
+			{
+				phy_write(0x04, 31, 0x10); //page 0
+				phy_write(0x4, 4, 0x11);
+			}
 			else if (Rxbuf[0] == 'R')
 			{
 				NVIC_SystemReset();
@@ -140,6 +149,9 @@ int main( void )
     // I2C FIX for 1776
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
+
+	// ETH PHY -> FPGA
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
 
 #ifdef MODULE_UART_DEBUG
     uart_init( UART_DEBUG );
