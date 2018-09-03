@@ -129,8 +129,6 @@ void RTM_Manage( void * Parameters )
             ps_old_state = ps_new_state;
         }
 
-
-
         if ( rtm_pwr_lvl_change ^ rtm_power_level ) {
             rtm_pwr_lvl_change = rtm_power_level;
 
@@ -163,6 +161,11 @@ void rtm_manage_init( void )
     rtm_power_level = 0;
 
     xTaskCreate( RTM_Manage, "RTM Manage", 100, (void *) NULL, tskRTM_MANAGE_PRIORITY, (TaskHandle_t *) NULL );
+}
+
+void rtm_power_lvl_change(uint8_t level)
+{
+	rtm_power_level = level;
 }
 
 /* Set Power Level Request handler */

@@ -111,6 +111,8 @@ static void check_fpga_reset( void )
  */
 void setDC_DC_ConvertersON()
 {
+	printf("Enable AMC Power\n");
+
 	gpio_set_pin_state( PIN_PORT(GPIO_EN_FMC1_P12V), PIN_NUMBER(GPIO_EN_FMC1_P12V), true );
 	vTaskDelay(100);
 	gpio_set_pin_state( PIN_PORT(GPIO_EN_P0V9), PIN_NUMBER(GPIO_EN_P0V9), true );
@@ -262,6 +264,8 @@ void vTaskPayload( void *pvParameters )
         case PAYLOAD_POWER_GOOD_WAIT:
             /* Turn DDC converters on */
             setDC_DC_ConvertersON();
+            vTaskDelay(100);
+            rtm_power_lvl_change(0x01);
 
             /* Clear hotswap sensor backend power failure bits */
             hotswap_clear_mask_bit( HOTSWAP_AMC, HOTSWAP_BACKEND_PWR_SHUTDOWN_MASK );

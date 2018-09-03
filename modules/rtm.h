@@ -41,5 +41,6 @@
  * @return None
  */
 void rtm_manage_init( void );
+void rtm_power_lvl_change(uint8_t level);
 
 #endif
