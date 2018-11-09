@@ -38,6 +38,8 @@
 #include "xr77129.h"
 #include "eth_phy.h"
 
+extern void post_pwr_init(void);
+
 /* payload states
  *   0 - no power
  *   1 - power switching on
@@ -266,6 +268,8 @@ void vTaskPayload( void *pvParameters )
             setDC_DC_ConvertersON();
             vTaskDelay(100);
             rtm_power_lvl_change(0x01);
+            pin_post_pwr_init();
+            post_pwr_init();
 
             /* Clear hotswap sensor backend power failure bits */
             hotswap_clear_mask_bit( HOTSWAP_AMC, HOTSWAP_BACKEND_PWR_SHUTDOWN_MASK );

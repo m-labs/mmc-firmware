@@ -22,5 +22,6 @@
 #define NON_GPIO 0xFF
 
 void pin_init( void );
+void pin_post_pwr_init( void );
 
 #endif

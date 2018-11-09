@@ -49,6 +49,7 @@ extern void setDC_DC_ConvertersON();
 bool pwr_override = false;
 extern volatile uint8_t rtm_power_level;
 extern xr77129_data_t xr77129_data[2];
+extern void post_pwr_init(void);
 
 void vCommandTask(void *pvParameters)
 {
@@ -60,6 +61,8 @@ void vCommandTask(void *pvParameters)
 		pwr_override = true;
 		setDC_DC_ConvertersON();
 		rtm_power_level = 0x01;
+		pin_post_pwr_init();
+		post_pwr_init();
 #if 0
 		// run without rtm task
 		rtm_hardware_init();
@@ -73,13 +76,13 @@ void vCommandTask(void *pvParameters)
 	uint8_t Rxbuf[2];
 	vTaskDelay(100);
 
-    if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
-	{
-    	printf("Power override\n");
-    	pwr_override = true;
-    	setDC_DC_ConvertersON();
-    	rtm_power_level = 0x01;
-	}
+//    if (gpio_read_pin( PIN_PORT(GPIO_P12V0_OK), PIN_NUMBER(GPIO_P12V0_OK)))
+//	{
+//    	printf("Power override\n");
+//    	pwr_override = true;
+//    	setDC_DC_ConvertersON();
+//    	rtm_power_level = 0x01;
+//	}
 
 	for (;;)
 	{
@@ -136,6 +139,22 @@ void vCommandTask(void *pvParameters)
 	}
 }
 
+void post_pwr_init(void)
+{
+#ifdef MODULE_SCANSTA1101
+    scansta1101_init();
+#endif
+#ifdef MODULE_SCANSTA112
+    scansta112_init();
+#endif
+#ifdef MODULE_FPGA_SPI
+    fpga_spi_init();
+#endif
+
+	// ETH PHY -> FPGA
+	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
+}
+
 /*-----------------------------------------------------------*/
 int main( void )
 {
@@ -149,9 +168,6 @@ int main( void )
     // I2C FIX for 1776
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, (IOCON_FUNC3 | IOCON_MODE_PULLUP | IOCON_OPENDRAIN_EN));
-
-	// ETH PHY -> FPGA
-	gpio_set_pin_state( PIN_PORT(GPIO_PHY_RGMII_SEL), PIN_NUMBER(GPIO_PHY_RGMII_SEL), GPIO_LEVEL_HIGH );
 
 #ifdef MODULE_UART_DEBUG
     uart_init( UART_DEBUG );
@@ -185,15 +201,6 @@ int main( void )
 #ifdef MODULE_PAYLOAD
     payload_init();
 #endif
-#ifdef MODULE_SCANSTA1101
-    scansta1101_init();
-#endif
-#ifdef MODULE_SCANSTA112
-    scansta112_init();
-#endif
-#ifdef MODULE_FPGA_SPI
-    fpga_spi_init();
-#endif
 #ifdef MODULE_RTM
     rtm_manage_init();
 #endif
@@ -201,7 +208,7 @@ int main( void )
     /* NOTE: ipmb_init() is called inside this function */
     ipmi_init();
 
-	xTaskCreate(vCommandTask, (signed char *) "Commands", configMINIMAL_STACK_SIZE + 256UL, NULL, (tskIDLE_PRIORITY + 1UL), (xTaskHandle *) NULL);
+//	xTaskCreate(vCommandTask, (signed char *) "Commands", configMINIMAL_STACK_SIZE + 256UL, NULL, (tskIDLE_PRIORITY + 1UL), (xTaskHandle *) NULL);
     /* Start the tasks running. */
     vTaskStartScheduler();
 

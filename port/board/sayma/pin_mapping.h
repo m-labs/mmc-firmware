@@ -197,24 +197,8 @@
 		GPIO_I2C_MUX_ADDR1,						\
 		GPIO_I2C_MUX_ADDR2,						\
 		GPIO_SW_RESETn,							\
-		MMC_UART1_TXD,							\
-		MMC_UART1_RXD,							\
-		MMC_UART4_TXD,							\
-		MMC_UART4_RXD,							\
         UART_DEBUG_TXD,                         \
         UART_DEBUG_RXD,                         \
-        SSP0_SCK,                               \
-        SSP0_SSEL,                              \
-        SSP0_MISO,                              \
-        SSP0_MOSI,                              \
-        SSP1_SCK,                               \
-        SSP1_SSEL,                              \
-        SSP1_MISO,                              \
-        SSP1_MOSI,                              \
-		FLASH_UPD_CLK,							\
-		FLASH_UPD_CSB,							\
-		FLASH_UPD_MISO,							\
-		FLASH_UPD_MOSI,							\
         GPIO_GA0,                               \
         GPIO_GA1,                               \
         GPIO_GA2,                               \
@@ -234,47 +218,64 @@
         GPIO_EN_RTM_MP,                  	    \
         GPIO_EN_RTM_PWR,               	        \
         GPIO_RTM_PS,                  		    \
+        GPIO_MMC_ENABLE,                   		\
+        GPIO_OVERTEMPn                    		\
+
+#define PIN_POST_PWR_CFG_LIST                   \
+		GPIO_FMC1_PRSNT_M2C,                    \
+        GPIO_FMC1_PG_M2C,                       \
+        GPIO_FMC1_PG_C2M,                       \
+        GPIO_HW_ID0,							\
+		GPIO_HW_ID1,							\
+		GPIO_HW_ID2,							\
+		GPIO_HW_ID3,							\
 		GPIO_PHY_RESETn,						\
 		GPIO_PHY_RGMII_SEL,						\
 		GPIO_PHY_CFG_SPD0,						\
 		GPIO_PHY_CFG_SPD1,						\
 		GPIO_PHY_CFG_DDR,						\
 		GPIO_PHY_MII_MODE_LED,					\
-        GPIO_FPGA_PROGRAM_B,                    \
-        GPIO_FPGA_DONE_B,                       \
-        GPIO_FPGA_RESETn,                       \
-        GPIO_FPGA_INITB,                        \
-        GPIO_FPGA_STATUS,                       \
-        GPIO_EN_FLASH_UPDATE,                   \
-        GPIO_SCANSTA112_ADDR0,                  \
-        GPIO_SCANSTA112_ADDR1,                  \
-        GPIO_SCANSTA112_ADDR2,                  \
-        GPIO_SCANSTA112_ADDR3,                  \
-        GPIO_SCANSTA112_ADDR4,                  \
-        GPIO_SCANSTA112_ADDR5,                  \
-        GPIO_SCANSTA112_ADDR6,                  \
+		GPIO_FPGA_PROGRAM_B,                    \
+		GPIO_FPGA_DONE_B,                       \
+		GPIO_FPGA_RESETn,                       \
+		GPIO_FPGA_INITB,                        \
+		GPIO_FPGA_STATUS,                       \
+		GPIO_EN_FLASH_UPDATE,                   \
+		GPIO_SCANSTA112_ADDR0,                  \
+		GPIO_SCANSTA112_ADDR1,                  \
+		GPIO_SCANSTA112_ADDR2,                  \
+		GPIO_SCANSTA112_ADDR3,                  \
+		GPIO_SCANSTA112_ADDR4,                  \
+		GPIO_SCANSTA112_ADDR5,                  \
+		GPIO_SCANSTA112_ADDR6,                  \
 		GPIO_SCANSTA112_ADDR7,                  \
 		GPIO_SCANSTA112_LPSEL0,                 \
-        GPIO_SCANSTA112_LPSEL1,                 \
-        GPIO_SCANSTA112_LPSEL2,                 \
-        GPIO_SCANSTA112_LPSEL3,                 \
-        GPIO_SCANSTA112_LPSEL4,                 \
-        GPIO_SCANSTA112_LPSEL5,                 \
-        GPIO_SCANSTA112_LPSEL6,                 \
-        GPIO_SCANSTA112_RESET,                  \
-        GPIO_SCANSTA112_SB_S,                   \
-        GPIO_MMC_ENABLE,                   		\
-        GPIO_OVERTEMPn,                    		\
-        GPIO_FMC1_PRSNT_M2C,                    \
-        GPIO_FMC1_PG_M2C,                       \
-        GPIO_FMC1_PG_C2M,                       \
-        GPIO_HW_ID0,							\
-		GPIO_HW_ID1,							\
-		GPIO_HW_ID2,							\
-		GPIO_HW_ID3
+		GPIO_SCANSTA112_LPSEL1,                 \
+		GPIO_SCANSTA112_LPSEL2,                 \
+		GPIO_SCANSTA112_LPSEL3,                 \
+		GPIO_SCANSTA112_LPSEL4,                 \
+		GPIO_SCANSTA112_LPSEL5,                 \
+		GPIO_SCANSTA112_LPSEL6,                 \
+		GPIO_SCANSTA112_RESET,                  \
+		GPIO_SCANSTA112_SB_S,                   \
+		SSP0_SCK,                               \
+		SSP0_SSEL,                              \
+		SSP0_MISO,                              \
+		SSP0_MOSI,                              \
+		SSP1_SCK,                               \
+		SSP1_SSEL,                              \
+		SSP1_MISO,                              \
+		SSP1_MOSI,                              \
+		FLASH_UPD_CLK,							\
+		FLASH_UPD_CSB,							\
+		FLASH_UPD_MISO,							\
+		FLASH_UPD_MOSI,							\
+		MMC_UART1_TXD,							\
+		MMC_UART1_RXD,							\
+		MMC_UART4_TXD,							\
+		MMC_UART4_RXD							\
 
 #endif
-
 /**
  * @}
  */
